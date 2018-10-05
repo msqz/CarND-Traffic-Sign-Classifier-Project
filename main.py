@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 from dataset import DataSet
-
+from lenet import LeNet
 
 train = DataSet('./data/train.p')
-validation = DataSet('./data/valid.p')
-test = DataSet('./data/test.p')
+valid = DataSet('./data/valid.p')
 
-X_train, y_train = train.features, train.labels
+print(train.image_shape)
 
-validation.show_frequency(top_n=5)
+network = LeNet(0.001, 10, 128, 0, 0.1)
+network.train(train)
+accuracy = network.evaluate(valid)
+print('Total accuracy: {:.3f}'.format(accuracy))

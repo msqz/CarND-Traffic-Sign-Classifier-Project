@@ -10,7 +10,7 @@ class DataSet:
         with open(fp, mode='rb') as f:
             self.data = pickle.load(f)
 
-        self.features = self.data['features']
+        self.examples = self.data['features']
         self.labels = self.data['labels']
 
         self.classes = {}
@@ -21,12 +21,15 @@ class DataSet:
                 if row[0] in unique:
                     self.classes[row[0]] = row[1]
 
-        self.n_examples = len(self.features)
+        self.n_examples = len(self.examples)
         self.n_classes = len(self.classes)
-        self.image_shape = self.features[0].shape
+        self.image_shape = self.examples[0].shape
+
+    def normalize(self):
+        import pdb; pdb.set_trace()
 
     def show_example(self, i):
-        plt.imshow(self.features[i])
+        plt.imshow(self.examples[i])
         plt.title(self.classes['{}'.format(self.labels[i])])
         plt.show()
 
