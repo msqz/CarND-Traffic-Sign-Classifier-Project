@@ -32,8 +32,6 @@ import numpy as np
 from sklearn.utils import shuffle
 import cv2
 
-X_train, y_train = shuffle(X_train, y_train)
-
 
 def gray(data):
     gray = []
@@ -48,16 +46,30 @@ def normalize(data):
     return (normalized - 128) / 128
 
 
+def replicate(data, labels):
+    blurred = []
+    for x in data:
+        blurred.append(cv2.GaussianBlur(x, (3, 3), 0))
+
+    return np.concatenate((data,
+                           np.array(blurred))),\
+        np.concatenate((labels, labels))
+
+
 # X_train = gray(X_train)
+X_train, y_train = replicate(X_train, y_train)
 X_train = normalize(X_train)
 # X_validation = gray(X_validation)
 # X_validation = normalize(X_validation)
+
+X_train, y_train = shuffle(X_train, y_train)
+
 
 # Setup TensorFlow
 import tensorflow as tf
 
 EPOCHS = 100
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 CHANNELS = 3
 CLASSES = 43
 LEARNING_RATE = 0.001
@@ -172,7 +184,7 @@ def evaluate(X_data, y_data):
         batch_x, batch_y = X_data[offset:offset +
                                   BATCH_SIZE], y_data[offset:offset+BATCH_SIZE]
         accuracy = sess.run(accuracy_operation, feed_dict={
-                            x: batch_x, y: batch_y, keep_prob: 1.0})
+            x: batch_x, y: batch_y, keep_prob: 1.0})
         total_accuracy += (accuracy * len(batch_x))
     return total_accuracy / num_examples
 
