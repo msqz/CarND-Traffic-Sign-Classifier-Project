@@ -5,13 +5,22 @@ import numpy as np
 from operator import itemgetter
 
 
+def preprocess(examples, sizes, coords):
+    normalized = (examples - 128) / examples
+    return normalized
+
+
 class DataSet:
     def __init__(self, fp):
         with open(fp, mode='rb') as f:
             self.data = pickle.load(f)
 
-        self.examples = self.data['features']
+        self.raw = np.array(self.data['features'])
         self.labels = self.data['labels']
+        self.sizes = self.data['sizes']
+        self.coords = self.data['coords']
+        #self.examples = preprocess(self.raw, self.sizes, self.coords)
+        self.examples = self.data['features']
 
         self.classes = {}
         with open('./signnames.csv', newline='') as f:
@@ -25,11 +34,8 @@ class DataSet:
         self.n_classes = len(self.classes)
         self.image_shape = self.examples[0].shape
 
-    def normalize(self):
-        import pdb; pdb.set_trace()
-
-    def show_example(self, i):
-        plt.imshow(self.examples[i])
+    def show_raw(self, i):
+        plt.imshow(self.raw[i])
         plt.title(self.classes['{}'.format(self.labels[i])])
         plt.show()
 
