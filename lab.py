@@ -56,19 +56,23 @@ def replicate(data, labels):
         np.concatenate((labels, labels))
 
 
+# X_train, y_train = replicate(X_train, y_train)
 # X_train = gray(X_train)
-X_train, y_train = replicate(X_train, y_train)
+from replication import fill_up
+X_train, y_train = fill_up(X_train, y_train)
 X_train = normalize(X_train)
 # X_validation = gray(X_validation)
 # X_validation = normalize(X_validation)
 
 X_train, y_train = shuffle(X_train, y_train)
+X_validation, y_validation = shuffle(X_validation, y_validation)
 
+# import pdb; pdb.set_trace()
 
 # Setup TensorFlow
 import tensorflow as tf
 
-EPOCHS = 100
+EPOCHS = 10
 BATCH_SIZE = 128
 CHANNELS = 3
 CLASSES = 43
@@ -173,20 +177,26 @@ correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(one_hot_y, 1))
 accuracy_operation = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 saver = tf.train.Saver()
 
-loss_history = []
+train_loss_rec = []
+train_acc_rec = []
+valid_loss_rec = []
+valid_acc_rec = []
 
 
 def evaluate(X_data, y_data):
     num_examples = len(X_data)
     total_accuracy = 0
     sess = tf.get_default_session()
+    avg_loss = 0
     for offset in range(0, num_examples, BATCH_SIZE):
         batch_x, batch_y = X_data[offset:offset +
                                   BATCH_SIZE], y_data[offset:offset+BATCH_SIZE]
-        accuracy = sess.run(accuracy_operation, feed_dict={
+        accuracy, loss = sess.run([accuracy_operation, loss_operation], feed_dict={
             x: batch_x, y: batch_y, keep_prob: 1.0})
         total_accuracy += (accuracy * len(batch_x))
-    return total_accuracy / num_examples
+        avg_loss += loss
+
+    return total_accuracy / num_examples, avg_loss/BATCH_SIZE
 
 
 # Train the Model
@@ -206,19 +216,29 @@ with tf.Session() as sess:
                                feed_dict={x: batch_x, y: batch_y, keep_prob: DROPOUT})
             avg_loss += loss
 
-        loss_history.append(avg_loss/BATCH_SIZE)
-        train_accuracy = evaluate(X_train, y_train)
-        validation_accuracy = evaluate(X_validation, y_validation)
+        train_loss_rec.append(avg_loss/BATCH_SIZE)
+        train_accuracy, _ = evaluate(X_train, y_train)
+        train_acc_rec.append(train_accuracy)
+        valid_accuracy, valid_loss = evaluate(X_validation, y_validation)
+        valid_acc_rec.append(valid_accuracy)
+        valid_loss_rec.append(valid_loss)
         print("EPOCH {} ...".format(i+1))
-        print("Training Accuracy = {:.3f}".format(train_accuracy))
-        print("Validation Accuracy = {:.3f}".format(validation_accuracy))
+        print("Training: loss = {:.3f}, accuracy = {:.3f}".format(
+            train_loss_rec[-1], train_accuracy))
+        print("Validation: loss = {:.3f}, accuracy = {:.3f}".format(
+            valid_loss_rec[-1], valid_accuracy))
 
     # saver.save(sess, './lenet')
     # print("Model saved")
 
 from matplotlib import pyplot as plt
 
-plt.plot(loss_history)
+plt.subplot(211)
+plt.plot(train_loss_rec, 'r')
+plt.plot(valid_loss_rec, 'b')
+plt.subplot(212)
+plt.plot(train_acc_rec, 'r')
+plt.plot(valid_acc_rec, 'b')
 plt.show()
 
 
