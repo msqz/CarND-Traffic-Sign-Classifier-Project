@@ -31,6 +31,7 @@ from sklearn.utils import shuffle
 from helpers import equalize, normalize
 
 X_train, y_train = equalize(X_train, y_train)
+print(X_train.shape)
 
 X_train = normalize(X_train)
 X_validation = normalize(X_validation)
@@ -143,7 +144,7 @@ training_operation = optimizer.minimize(loss_operation)
 # Model Evaluation
 correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(one_hot_y, 1))
 accuracy_operation = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-saver = tf.train.Saver()
+#saver = tf.train.Saver()
 
 train_loss_rec = []
 train_acc_rec = []
@@ -198,7 +199,7 @@ with tf.Session() as sess:
 
         if (valid_accuracy > max_valid_accuracy):
             max_valid_accuracy = valid_accuracy
-            saver.save(sess, './lenet')
+            #saver.save(sess, './lenet')
             print("Model saved")
 
 print(max_valid_accuracy)

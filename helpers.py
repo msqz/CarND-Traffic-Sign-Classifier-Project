@@ -68,4 +68,5 @@ def equalize(data, labels):
         labels_expanded = np.concatenate(
             (labels_expanded, np.full((missing,), label)))
 
+    import pdb; pdb.set_trace()
     return data_expanded, labels_expanded
