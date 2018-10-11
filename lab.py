@@ -26,53 +26,23 @@ print("Validation Set: {} samples".format(len(X_validation)))
 print("Test Set:       {} samples".format(len(X_test)))
 
 
-import numpy as np
-
 # Preprocess data
 from sklearn.utils import shuffle
-import cv2
+from helpers import equalize, normalize
 
+X_train, y_train = equalize(X_train, y_train)
 
-def gray(data):
-    gray = []
-    for x in data:
-        gray.append(cv2.cvtColor(x, cv2.COLOR_RGB2GRAY)[:, :, np.newaxis])
-
-    return gray
-
-
-def normalize(data):
-    normalized = np.array(data, dtype=np.int16)
-    return (normalized - 128) / 128
-
-
-def replicate(data, labels):
-    blurred = []
-    for x in data:
-        blurred.append(cv2.GaussianBlur(x, (3, 3), 0))
-
-    return np.concatenate((data,
-                           np.array(blurred))),\
-        np.concatenate((labels, labels))
-
-
-# X_train, y_train = replicate(X_train, y_train)
-# X_train = gray(X_train)
-from replication import fill_up
-X_train, y_train = fill_up(X_train, y_train)
 X_train = normalize(X_train)
-# X_validation = gray(X_validation)
-# X_validation = normalize(X_validation)
+X_validation = normalize(X_validation)
+X_test = normalize(X_test)
 
 X_train, y_train = shuffle(X_train, y_train)
 X_validation, y_validation = shuffle(X_validation, y_validation)
 
-# import pdb; pdb.set_trace()
-
 # Setup TensorFlow
 import tensorflow as tf
 
-EPOCHS = 10
+EPOCHS = 100
 BATCH_SIZE = 128
 CHANNELS = 3
 CLASSES = 43
@@ -81,7 +51,7 @@ BETA = 0.001
 DROPOUT = 0.5
 
 # Implement LeNet-5
-from tensorflow.contrib.layers import flatten
+#from tensorflow.contrib.layers import flatten
 
 # Arguments used for tf.truncated_normal, randomly defines variables for the weights and biases for each layer
 mu = 0
@@ -158,17 +128,15 @@ keep_prob = tf.placeholder(tf.float32)
 
 
 # Training pipeline
-rate = LEARNING_RATE
-
 logits = LeNet(x, keep_prob)
-cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
+cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(
     labels=one_hot_y, logits=logits)
 loss_operation = tf.reduce_mean(cross_entropy)
 regularizers = tf.nn.l2_loss(weights['fc1']) +\
     tf.nn.l2_loss(weights['fc2']) +\
     tf.nn.l2_loss(weights['logits'])
 loss_operation = tf.reduce_mean(loss_operation + BETA * regularizers)
-optimizer = tf.train.AdamOptimizer(learning_rate=rate)
+optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE)
 training_operation = optimizer.minimize(loss_operation)
 
 
@@ -181,6 +149,7 @@ train_loss_rec = []
 train_acc_rec = []
 valid_loss_rec = []
 valid_acc_rec = []
+max_valid_accuracy = 0
 
 
 def evaluate(X_data, y_data):
@@ -207,7 +176,6 @@ with tf.Session() as sess:
     print("Training...")
     print()
     for i in range(EPOCHS):
-        X_train, y_train = shuffle(X_train, y_train)
         avg_loss = 0
         for offset in range(0, num_examples, BATCH_SIZE):
             end = offset + BATCH_SIZE
@@ -223,22 +191,32 @@ with tf.Session() as sess:
         valid_acc_rec.append(valid_accuracy)
         valid_loss_rec.append(valid_loss)
         print("EPOCH {} ...".format(i+1))
-        print("Training: loss = {:.3f}, accuracy = {:.3f}".format(
+        print("Training: loss = {:.4f}, accuracy = {:.4f}".format(
             train_loss_rec[-1], train_accuracy))
-        print("Validation: loss = {:.3f}, accuracy = {:.3f}".format(
+        print("Validation: loss = {:.4f}, accuracy = {:.4f}".format(
             valid_loss_rec[-1], valid_accuracy))
 
-    # saver.save(sess, './lenet')
-    # print("Model saved")
+        if (valid_accuracy > max_valid_accuracy):
+            max_valid_accuracy = valid_accuracy
+            saver.save(sess, './lenet')
+            print("Model saved")
+
+print(max_valid_accuracy)
 
 from matplotlib import pyplot as plt
 
 plt.subplot(211)
-plt.plot(train_loss_rec, 'r')
-plt.plot(valid_loss_rec, 'b')
+plt.plot(train_loss_rec, 'r', label='Training')
+plt.plot(valid_loss_rec, 'b', label='Validation')
+plt.title('Cost')
+plt.xlabel('Epoch')
+plt.legend()
 plt.subplot(212)
-plt.plot(train_acc_rec, 'r')
-plt.plot(valid_acc_rec, 'b')
+plt.plot(train_acc_rec, 'r', label='Training')
+plt.plot(valid_acc_rec, 'b', label='Validation')
+plt.title('Accuracy')
+plt.xlabel('Epochs')
+plt.legend()
 plt.show()
 
 
@@ -246,5 +224,5 @@ plt.show()
 # with tf.Session() as sess:
 #     saver.restore(sess, tf.train.latest_checkpoint('.'))
 
-#     test_accuracy = evaluate(X_test, y_test)
+#     test_accuracy, _ = evaluate(X_test, y_test)
 #     print("Test Accuracy = {:.3f}".format(test_accuracy))

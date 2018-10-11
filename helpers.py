@@ -3,10 +3,16 @@ from scipy import ndimage
 import cv2
 import random
 import math
+from tqdm import tqdm
 
 
-def randomize(dataset):
-    randomized = []
+def normalize(data):
+    normalized = np.array(data, dtype=np.int16)
+    return (normalized - 128) / 128
+
+
+def augment(dataset):
+    augmented = []
 
     for i, img in enumerate(dataset):
         # every 2nd image gets rotated
@@ -19,20 +25,20 @@ def randomize(dataset):
                 (img.shape[1]/2)/math.tan(math.radians(90-abs(rotation)))) + 1
             cropped = rotated[crop_w:-crop_w, crop_h:-crop_h]
             resized = cv2.resize(cropped, (img.shape[1], img.shape[0]))
-            randomized.append(resized)
+            augmented.append(resized)
         # every 3rd image gets blurred
         elif i % 3 == 0:
             sigma = random.randrange(3, 11, 2)
-            randomized.append(ndimage.gaussian_filter(img, sigma=sigma))
+            augmented.append(ndimage.gaussian_filter(img, sigma=sigma))
         # others get sharpened
         else:
             f = ndimage.gaussian_filter(img, sigma=1)
-            randomized.append(2 * img - f)
+            augmented.append(2 * img - f)
 
-    return randomized
+    return augmented
 
 
-def fill_up(data, labels):
+def equalize(data, labels):
     data_expanded = np.copy(data)
     labels_expanded = np.copy(labels)
     frequency = np.array(np.unique(labels, return_counts=True)).T
@@ -44,7 +50,7 @@ def fill_up(data, labels):
 
     top = np.max(frequency[:, 1])
 
-    for f in frequency:
+    for f in tqdm(frequency):
         label = f[0]
         count = f[1]
         missing = top - count
@@ -57,7 +63,7 @@ def fill_up(data, labels):
             addition = np.repeat(
                 buckets[label], missing//count + 1, axis=0)[:missing]
 
-        addition = randomize(addition)
+        addition = augment(addition)
         data_expanded = np.concatenate((data_expanded, addition))
         labels_expanded = np.concatenate(
             (labels_expanded, np.full((missing,), label)))
