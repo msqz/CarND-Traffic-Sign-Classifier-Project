@@ -4,6 +4,7 @@ import cv2
 import random
 import math
 from tqdm import tqdm
+from multiprocessing import Pool
 
 
 def normalize(data):
@@ -38,35 +39,36 @@ def augment(dataset):
     return augmented
 
 
+def equalize_part(data, label, top):
+    count = len(data)
+    missing = top - count
+    if missing == 0:
+        return data, np.full(len(data), label)
+
+    if missing <= count:
+        addition = data[:missing]
+    else:
+        addition = np.repeat(
+            data, missing//count + 1, axis=0)[:missing]
+
+    equalized_data = np.concatenate((data, augment(addition)))
+    return equalized_data, np.full(len(equalized_data), label)
+
+
 def equalize(data, labels):
-    data_expanded = np.copy(data)
-    labels_expanded = np.copy(labels)
     frequency = np.array(np.unique(labels, return_counts=True)).T
+    top = np.max(frequency[:, 1])
 
     buckets = {}
     for label in frequency[:, 0]:
         indices = np.where(labels == label)
         buckets[label] = data[indices]
 
-    top = np.max(frequency[:, 1])
+    with Pool(12) as p:
+        partials = p.starmap(equalize_part, zip(
+            buckets.values(), buckets.keys(), np.full(len(frequency), top)))
 
-    for f in tqdm(frequency):
-        label = f[0]
-        count = f[1]
-        missing = top - count
-        if missing == 0:
-            continue
+    data_expanded = np.concatenate([p[0] for p in partials])
+    labels_expanded = np.concatenate([p[1] for p in partials])
 
-        if missing <= count:
-            addition = buckets[label][:missing]
-        else:
-            addition = np.repeat(
-                buckets[label], missing//count + 1, axis=0)[:missing]
-
-        addition = augment(addition)
-        data_expanded = np.concatenate((data_expanded, addition))
-        labels_expanded = np.concatenate(
-            (labels_expanded, np.full((missing,), label)))
-
-    import pdb; pdb.set_trace()
     return data_expanded, labels_expanded
